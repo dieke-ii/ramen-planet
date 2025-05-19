@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mapbox 氣泡動畫示範</title>
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+<style>
+  body, html { margin: 0; padding: 0; height: 100%; }
+  #map { width: 100%; height: 100vh; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiZGlla2UiLCJhIjoiY21ha3B4NzAyMDBpbTJrb3E2bHkxYmc3ciJ9.IRhRE72a7DMfw6xg5YJWtQ';
+
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/light-v11',
+  center: [0, 20],
+  zoom: 1.5
+});
+
+let hoveredId = null;
+
+// 依 Count 線性內插基礎圓半徑
+const baseRadius = ['interpolate', ['linear'], ['get', 'Count'], 0, 4, 100, 20];
+
+map.on('load', () => {
+  fetch('Country Counts.geojson')
+    .then(res => res.json())
+    .then(data => {
+      // 設定唯一 id
+      data.features.forEach((f, i) => f.id = i);
+
+      map.addSource('countries', {
+        type: 'geojson',
+        data: data
+      });
+
+      // 新增氣泡 Layer
+      map.addLayer({
+        id: 'bubbles',
+        type: 'circle',
+        source: 'countries',
+        paint: {
+          'circle-color': '#1E90FF',
+          'circle-opacity': 0.7,
+          'circle-stroke-color': '#fff',
+          'circle-stroke-width': 1,
+          // 圓半徑 = 基礎大小 * (1 + 動畫倍率 anim)
+          'circle-radius': [
+            '*',
+            baseRadius,
+            ['+', 1, ['coalesce', ['feature-state', 'anim'], 0]]
+          ]
+        }
+      });
+
+      // 鼠標滑入觸發 hover 狀態設為 1
+      map.on('mouseenter', 'bubbles', e => {
+        if (e.features.length > 0) {
+          if (hoveredId !== null) {
+            map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: 0 });
+          }
+          hoveredId = e.features[0].id;
+          map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: 1 });
+          map.getCanvas().style.cursor = 'pointer';
+        }
+      });
+
+      // 鼠標滑出恢復 hover 狀態為 0
+      map.on('mouseleave', 'bubbles', () => {
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: 'countries', id: hoveredId }, { hover: 0 });
+          hoveredId = null;
+        }
+        map.getCanvas().style.cursor = '';
+      });
+
+      // 動畫迴圈，平滑變更 anim 狀態
+      function animate() {
+        let needsUpdate = false;
+        data.features.forEach(f => {
+          const id = f.id;
+          const state = map.getFeatureState({ source: 'countries', id }) || {};
+          const target = state.hover === 1 ? 1 : 0;
+          const current = state.anim || 0;
+          const delta = (target - current) * 0.1;
+          if (Math.abs(delta) > 0.01) {
+            const next = current + delta;
+            map.setFeatureState({ source: 'countries', id }, { anim: next, hover: state.hover });
+            needsUpdate = true;
+          } else if (state.anim !== target) {
+            map.setFeatureState({ source: 'countries', id }, { anim: target, hover: state.hover });
+            needsUpdate = true;
+          }
+        });
+        if (needsUpdate) {
+          requestAnimationFrame(animate);
+        }
+      }
+      animate();
+
+    })
+    .catch(err => console.error('載入 GeoJSON 失敗:', err));
+});
+</script>
+
+</body>
+</html>
