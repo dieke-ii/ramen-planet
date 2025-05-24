@@ -1,0 +1,39 @@
+Country,Preferred_Soup_Base,Avg_Spiciness
+Australia,Unknown,0.14
+Bangladesh,Curry,0.29
+Brazil,Unknown,0.0
+Cambodia,Curry,0.2
+Canada,Kimchi,0.29
+China,No Soup,0.31
+Colombia,Sesame,0.0
+Dubai,Curry,0.33
+Estonia,Unknown,0.0
+Fiji,Curry,0.25
+Finland,Unknown,0.0
+Germany,Curry,0.3
+Ghana,Unknown,0.0
+Holland,Unknown,0.0
+Hong Kong,Pork Bone,0.2
+Hungary,Unknown,0.11
+India,Tomato,0.32
+Indonesia,Curry,0.16
+Japan,Broth,0.1
+Malaysia,Curry,0.43
+Mexico,Sesame,0.12
+Myanmar,No Soup,0.0
+Nepal,Curry,0.14
+Netherlands,Curry,0.2
+Nigeria,Unknown,0.0
+Pakistan,Unknown,0.11
+Philippines,Unknown,0.15
+Poland,Tomato,0.0
+Sarawak,Soy Sauce,0.0
+Singapore,Curry,0.29
+South Korea,Kimchi,0.23
+Sweden,Unknown,0.33
+Taiwan,Sesame,0.2
+Thailand,Curry,0.11
+UK,Curry,0.22
+USA,Broth,0.23
+United States,Unknown,0.0
+Vietnam,Kimchi,0.13
