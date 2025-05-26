@@ -19,14 +19,14 @@
 
     #brandChart {
       position: absolute;
-      top: 2vh;
-      right: 2vw;
-      width: 35vw;
-      height: 70vh;
+      top: 20px;
+      right: 20px;
+      width: 520px;
+      height: 360px;
       background-color: rgba(255, 255, 255, 0.75);
       border: 1px solid #ddd;
       border-radius: 12px;
-      padding: 1.5vh 1.5vw;
+      padding: 16px;
       z-index: 10;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       transition: opacity 0.5s ease;
@@ -46,11 +46,11 @@
     }
 
     #chart-container {
-      width: 50vw;
-      height: 70vh;;
+      width: 520px;
+      height: 320px;
       position: absolute;
-      left: 2vw;   
-      bottom: 2vh; 
+      left: 20px;   
+      bottom: 10px; 
       z-index: 20; 
       background-color: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
@@ -382,11 +382,6 @@
             pointRadius: 6,
             tension: 0.2
           };
-        });
-
-        window.addEventListener('resize', () => {
-          if (brandChartInstance) brandChartInstance.resize();
-          if (myChartInstance) myChartInstance.resize();
         });
 
         const ctx = document.getElementById('myChart').getContext('2d');
