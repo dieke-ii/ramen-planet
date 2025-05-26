@@ -381,7 +381,7 @@
         });
 
         const ctx = document.getElementById('myChart').getContext('2d');
-        new Chart(ctx, {
+        const myChart = new Chart(ctx, {
           type: 'scatter',
           data: {
             labels: soupBases,
