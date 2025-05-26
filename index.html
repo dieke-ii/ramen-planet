@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Mapbox 泡麵品牌評比地圖</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    #brandChart {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 520px;
+      height: 360px;
+      background-color: rgba(255, 255, 255, 0.75);
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 10;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transition: opacity 0.5s ease;
+      opacity: 1;
+    }
+
+    #brandChart.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #brandChart canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    #chart-container {
+      width: 520px;
+      height: 320px;
+      position: absolute; /* 固定在視窗 */
+      left: 20px;      /* 離左邊 20px */
+      bottom: 10px;    /* 離底部 20px */
+      z-index: 20;     /* 確保它在地圖圖層上方 */
+      background-color: rgba(255, 255, 255, 0.8); /* 避免內容看不清楚，根據需求加 */
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0,0.3);
+    }
+
+    #background-container {
+      position: absolute; 
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background-image: url('http://127.0.0.1:5500/ramen/map-demo/ramen-planet.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+    } 
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background-color: transparent; /* 透明 */
+      z-index: 1;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="background-container"></div>
+  <div id="map"></div>
+  <div id="brandChart" class="hidden">
+    <canvas></canvas>
+  </div>
+
+  <div id="chart-container">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZGlla2UiLCJhIjoiY21ha3B4NzAyMDBpbTJrb3E2bHkxYmc3ciJ9.IRhRE72a7DMfw6xg5YJWtQ';
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/dieke/cmauv4vve01kv01sidqof58ef',
+      center: [0, 20],
+      zoom: 1.5
+    });
+
+    let hideTimeout = null;
+    let currentCountry = null;
+    let isMouseOverChart = false;
+
+    const brandChartDiv = document.querySelector('#brandChart');
+      // 監聽 #brandChart 滑鼠進入與離開事件
+      brandChartDiv.addEventListener('mouseenter', () => {
+        isMouseOverChart = true;
+        if (hideTimeout) {
+          clearTimeout(hideTimeout);
+          hideTimeout = null;
+        }
+      });
+
+      brandChartDiv.addEventListener('mouseleave', () => {
+        isMouseOverChart = false;
+        hideTimeout = setTimeout(() => {
+          if (!isMouseOverChart) {
+            brandChartDiv.classList.add('hidden');
+            currentCountry = null;
+          }
+        }, 300);
+      });
+
+    map.on('load', async () => {
+      const response = await fetch('Country Brand Ratings.geojson');
+      const data = await response.json();
+    
+      const sharedColor = '#6FA031';
+      const radiusStops = ['interpolate', ['linear'], ['get', 'Count'], 0, 12, 500, 70];
+
+      map.addSource('countries', { type: 'geojson', data });
+      map.setPaintProperty('background', 'background-color', 'rgba(0, 0, 0, 0)');
+
+
+      // 圓圈核心
+      map.addLayer({
+        id: 'bubbles-core',
+        type: 'circle',
+        source: 'countries',
+        paint: {
+          'circle-radius': radiusStops,
+          'circle-color': sharedColor,
+          'circle-opacity': 0.15
+        }
+      });
+
+      // 外圈靜態光暈
+      map.addLayer({
+        id: 'bubbles-glow-static',
+        type: 'circle',
+        source: 'countries',
+        paint: {
+          'circle-radius': radiusStops,
+          'circle-color': '#83B73D',
+          'circle-opacity': 0.05,
+          'circle-blur': 1.2
+        }
+      });
+
+      // 動畫層光暈
+      map.addLayer({
+        id: 'bubbles-glow-anim',
+        type: 'circle',
+        source: 'countries',
+        paint: {
+          'circle-radius': radiusStops,
+          'circle-color': sharedColor,
+          'circle-opacity': 0.05,
+          'circle-blur': 1.2
+        }
+      });
+
+      ['circle-opacity', 'circle-blur'].forEach(p => {
+        map.setPaintProperty('bubbles-glow-anim', `${p}-transition`, { duration: 0 });
+      });
+
+      function animate(ts) {
+        const t = (ts / 1000) % 10;
+        const k = (Math.sin(t * Math.PI * 2) + 1) / 2 / 10;
+        const opacity = 0.4 + k * 0.2;
+        const blur = 0.2 + k * 0.6;
+
+        map.setPaintProperty('bubbles-glow-anim', 'circle-opacity', opacity);
+        map.setPaintProperty('bubbles-glow-anim', 'circle-blur', blur);
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      function getStarColor(star) {
+        const max = 5;
+        const intensity = Math.min(Math.max(star / max, 0), 1);
+        const baseColor = [255, 87, 34];
+        const grayColor = [220, 220, 220];
+        return `rgb(${grayColor.map((g, i) =>
+          Math.round(g + (baseColor[i] - g) * intensity)
+        ).join(',')})`;
+      }
+
+      // Popup（點擊）
+      map.on('click', 'bubbles-core', e => {
+        const f = e.features[0];
+        const { Count, Country = 'Unknown' } = f.properties;
+        const [lng, lat] = f.geometry.coordinates;
+        new mapboxgl.Popup()
+          .setLngLat([lng, lat])
+          .setHTML(`<strong>${Country}</strong><br/>評價數量: ${Count}`)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'bubbles-core', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', 'bubbles-core', () => {
+        map.getCanvas().style.cursor = '';
+        hideTimeout = setTimeout(() => {
+          if (!isMouseOverChart) {
+            brandChartDiv.classList.add('hidden');
+            currentCountry = null;
+          }
+        }, 1000);
+      });
+
+      // Bar chart 顯示
+      let chart = null;
+      map.on('mousemove', 'bubbles-core', e => {
+        const feature = e.features[0];
+        const { properties } = feature;
+        const country = properties.Country || 'Unknown';
+
+        let brandsData = properties.Brands;
+        if (typeof brandsData === 'string') {
+          try {
+            brandsData = JSON.parse(brandsData);
+          } catch (e) {
+            return;
+          }
+        }
+
+        if (!brandsData || !Array.isArray(brandsData)) return;
+        brandsData.sort((a, b) => b.Stars - a.Stars);
+        const brandNames = brandsData.map(b => b.Brand);
+        const brandStars = brandsData.map(b => b.Stars);
+
+        // 如果目前已經是這個國家，就不要重繪
+        if (country === currentCountry) return;
+        currentCountry = country;
+
+        const brandChartDiv = document.querySelector('#brandChart');
+        brandChartDiv.classList.remove('hidden');  // 顯示 chart
+
+        const canvas = brandChartDiv.querySelector('canvas');
+        if (chart) chart.destroy();
+        const ctx = canvas.getContext('2d');
+        const colors = brandsData.map(b => getStarColor(b.Stars));
+
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: brandNames,
+            datasets: [{
+              label: `泡麵評比 - ${country}`,
+              data: brandStars,
+              backgroundColor: colors
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, max: 5 },
+              x: { ticks: { maxRotation: 60, minRotation: 30 } }
+            },
+            plugins: {
+              legend: { display: true },
+              tooltip: { 
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const brand = context.label;
+                    const rating = context.raw;
+                    return `${brand}：${rating} 星`;
+                  }
+                }
+              }  
+            }
+          }
+        });
+      });
+    });
+
+  const countryToRegion = {
+    "Bangladesh": "Southeast Asia",
+    "Cambodia": "Southeast Asia",
+    "Canada": "North America",
+    "China": "East Asia",
+    "Colombia": "South America",
+    "Dubai": "Middle East",
+    "Fiji": "Oceania",
+    "Germany": "Europe",
+    "Hong Kong": "East Asia",
+    "India": "South Asia",
+    "Indonesia": "Southeast Asia",
+    "Japan": "East Asia",
+    "Malaysia": "Southeast Asia",
+    "Mexico": "North America",
+    "Myanmar": "Southeast Asia",
+    "Nepal": "South Asia",
+    "Netherlands": "Europe",
+    "Poland": "Europe",
+    "Sarawak": "Southeast Asia",
+    "Singapore": "Southeast Asia",
+    "South Korea": "East Asia",
+    "Taiwan": "East Asia",
+    "Thailand": "Southeast Asia",
+    "UK": "Europe",
+    "USA": "North America",
+    "Vietnam": "Southeast Asia",
+    "Australia": "Oceania",
+    "Brazil": "South America",
+    "Estonia": "Europe",
+    "Finland": "Europe",
+    "Ghana": "Africa",
+    "Holland": "Europe",
+    "Hungary": "Europe",
+    "Nigeria": "Africa",
+    "Pakistan": "South Asia",
+    "Philippines": "Southeast Asia",
+    "Sweden": "Europe",
+    "United States": "North America"
+
+  };
+
+
+  const ramenColors = {
+    "East Asia": "#D62828",    // 韓式紅燒辣泡麵
+    "Southeast Asia": "#F8961E", // 東南亞蝦味泡麵橘
+    "South Asia": "#F9C74F",   // 印度香料黃咖哩泡麵
+    "Central Asia": "#90BE6D", // 中亞羊肉香草泡麵綠
+    "West Asia": "#6A4C93",    // 中東香料茄子泡麵紫
+
+    "Europe": "#F4D35E",            // 起司黃泡麵
+    "Africa": "#F77F00",            // 咖哩橘泡麵
+    "Oceania": "#3A86FF",           // 海鹽藍泡麵
+    "North America": "#8338EC",     // 烤肉棕泡麵（紫）
+    "South America": "#FB5607"      // 番茄辣泡麵
+  };
+
+
+    // 載入 CSV 並繪製圖表
+    Papa.parse('country_soup_spiciness.csv', {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const data = results.data;
+
+        const soupBases = [...new Set(data.map(d => d.Preferred_Soup_Base))];
+        const countries = [...new Set(data.map(d => d.Country))];
+
+        const datasets = countries.map((country) => {
+          const region = countryToRegion[country] || 'Asia'; // fallback 預設 Asia
+          const color = ramenColors[region] || '#CCCCCC';    // fallback 灰
+
+          const countryData = data.filter(d => d.Country === country);
+          const dataPoints = soupBases.map(sb => {
+            const entry = countryData.find(d => d.Preferred_Soup_Base === sb);
+            return entry ? parseFloat(entry.Avg_Spiciness) : null;
+          });
+
+          return {
+            label: country,
+            data: dataPoints,
+            borderColor: color,
+            backgroundColor: color,
+            fill: false,
+            showLine: false,
+            pointStyle: 'circle',
+            pointRadius: 6,
+            tension: 0.2
+          };
+        });
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+            labels: soupBases,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: 'category',
+                labels: soupBases,
+                title: {
+                  display: true,
+                  text: 'Soup Base (湯底種類)'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                max: 0.6,
+                title: {
+                  display: true,
+                  text: 'Average Spiciness (平均辣度)'
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return `${context.dataset.label}: 辣度 ${context.parsed.y.toFixed(2)}`;
+                  }
+                }
+              },
+              datalabels: {
+                align: 'right',
+                anchor: 'start',
+                font: {
+                  size: 10,
+                  weight: 'bold'
+                },
+                formatter: function(value, context) {
+                  return context.dataset.label;
+                }
+              }
+            }
+          },
+          plugins: [ChartDataLabels]
+        });
+      }
+    });
+
+  </script>
+</body>
+
+</html>
+
