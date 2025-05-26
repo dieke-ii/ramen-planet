@@ -220,9 +220,6 @@
         }, 1000);
       });
 
-      let brandChartInstance = null;  
-      let myChartInstance = null; 
-
       // Bar chart 顯示
       let chart = null;
       map.on('mousemove', 'bubbles-core', e => {
@@ -252,12 +249,12 @@
         brandChartDiv.classList.remove('hidden');  // 顯示 chart
 
         const canvas = brandChartDiv.querySelector('canvas');
-        if (brandChartInstance) brandChartInstance.destroy();
+        if (chart) chart.destroy();
         const ctx = canvas.getContext('2d');
         const colors = brandsData.map(b => getStarColor(b.Stars));
 
         
-        brandChartInstance = new Chart(ctx, {
+        chart = new Chart(ctx, {
           type: 'bar',
           data: {
             labels: brandNames,
@@ -384,8 +381,7 @@
         });
 
         const ctx = document.getElementById('myChart').getContext('2d');
-        if (myChartInstance) myChartInstance.destroy();
-        const myChartInstance = Chart(ctx, {
+        const myChart = Chart(ctx, {
           type: 'scatter',
           data: {
             labels: soupBases,
