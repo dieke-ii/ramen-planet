@@ -22,7 +22,7 @@
       top: 2vh;
       right: 2vw;
       width: 30vw;
-      height: 20vh;
+      height: 50vh;
       background-color: rgba(255, 255, 255, 0.75);
       border: 1px solid #ddd;
       border-radius: 12px;
@@ -46,8 +46,8 @@
     }
 
     #chart-container {
-      width: 30vw;
-      height: 18vh;;
+      width: 50vw;
+      height: 30vh;;
       position: absolute;
       left: 2vw;   
       bottom: 2vh; 
@@ -384,6 +384,11 @@
           };
         });
 
+        window.addEventListener('resize', () => {
+          if (brandChartInstance) brandChartInstance.resize();
+          if (myChartInstance) myChartInstance.resize();
+        });
+
         const ctx = document.getElementById('myChart').getContext('2d');
         if (myChartInstance) myChartInstance.destroy();
         const myChartInstance = Chart(ctx, {
@@ -440,11 +445,6 @@
           plugins: [ChartDataLabels]
         });
       }
-    });
-
-    window.addEventListener('resize', () => {
-      if (brandChartInstance) brandChartInstance.resize();
-      if (myChartInstance) myChartInstance.resize();
     });
 
   </script>
