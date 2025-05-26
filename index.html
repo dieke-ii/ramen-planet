@@ -38,7 +38,7 @@
       pointer-events: none;
     }
 
-    #brandChart canvas,{
+    #brandChart canvas{
       width: 100% !important;
       height: 100% !important;
       display: block;
@@ -381,7 +381,7 @@
         });
 
         const ctx = document.getElementById('myChart').getContext('2d');
-        const myChart = Chart(ctx, {
+        new myChart = Chart(ctx, {
           type: 'scatter',
           data: {
             labels: soupBases,
