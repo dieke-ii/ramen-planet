@@ -356,7 +356,10 @@
               x: { ticks: { maxRotation: 60, minRotation: 30 } }
             },
             plugins: {
-              legend: { display: true },
+              legend: { display: true,
+                        position: 'top',
+                        align: 'center',   // 水平置中
+                      },
               tooltip: {
                 callbacks: {
                   label: function(context) {
